@@ -1,0 +1,4 @@
+Test accuracy: 0.92
+Precision: 0.96
+Recall: 0.92
+F1 Score: 0.93
