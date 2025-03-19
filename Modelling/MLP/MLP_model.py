@@ -17,81 +17,19 @@ import json
 
 
 
-# 0. Process Text Data: Encode + Standardize
+# 0. Read in/Process data
+text_train = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Data/TextData/text_train.csv")
+text_val = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Data/TextData/text_val.csv")
+text_test = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Data/TextData/text_test.csv")
 
-## Read in data
-text_data = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Data/TextData/data_cleaned.csv")
+def remove_cols(df):
+    """
+    Removes unecessary cols. 
+    """
+    new_df = df.drop(columns=["tifffile", "ParticleID"])
+    return(new_df)
 
-text_target = text_data["Class"]
-text_tifffile = text_data["tifffile"]
-
-
-## Remove unimportant columns
-columns_to_drop = ['Class.Particle.ID', 'Rep', 'Date', 'Key', 'Image.File', 'Original.Reference.ID', 'Source.Image', 'Time', 'Timestamp', 'csvfile_x', 'csvfile_y', 'Year', 'Month', 'Day', 'Class', 'tifffile']
-
-# Check if each column exists before dropping
-columns_to_drop = [col for col in columns_to_drop if col in text_data.columns]
-
-text_features_cleaned = text_data.drop(columns=columns_to_drop)
-
-
-## One-hot encoding for features
-categorical_cols = text_features_cleaned.select_dtypes(include=['object']).columns.tolist()
-encoder = OneHotEncoder(sparse_output=False)
-
-one_hot_encoded = encoder.fit_transform(text_features_cleaned[categorical_cols])
-
-one_hot_features_df = pd.DataFrame(one_hot_encoded, columns=encoder.get_feature_names_out(categorical_cols))
-
-## Label encoding for class
-label_encoder = LabelEncoder()
-encoded_class = label_encoder.fit_transform(text_target)
-
-# One-hot encode the target variable
-one_hot_encoded_class = to_categorical(encoded_class)
-
-# Convert the one-hot encoded matrix to a DataFrame
-one_hot_class_df = pd.DataFrame(one_hot_encoded_class, columns=[f'class_{i}' for i in range(one_hot_encoded_class.shape[1])])
-
-## Concatenate the one-hot encoded DataFrame with text_features_cleaned
-encoded_all = pd.concat([one_hot_features_df.reset_index(drop=True), one_hot_class_df.reset_index(drop=True)], axis=1)
-
-## Data standardization 
-scaler = StandardScaler()
-numerical_columns = list(set(text_features_cleaned.columns) - set(categorical_cols))
-numeric_standardized = pd.DataFrame(scaler.fit_transform(text_features_cleaned[numerical_columns]), columns=numerical_columns)
-
-## Concatenate encoded and standardized data
-text_all_cleaned = pd.concat([numeric_standardized.reset_index(drop=True), encoded_all.reset_index(drop=True)], axis=1)
-text_all_cleaned['tifffile'] = text_tifffile
-
-# 1. Split text data into train/test/val
-
-image_train = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Modelling/TrainTestSplit/train.csv")
-train_to_filter = [filename.split("_vign")[0] for filename in image_train["Vignette"]]
-
-image_test = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Modelling/TrainTestSplit/test.csv")
-test_to_filter = [filename.split("_vign")[0] for filename in image_test["Vignette"]]
-
-
-image_val = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Modelling/TrainTestSplit/val.csv")
-val_to_filter = [filename.split("_vign")[0] for filename in image_val["Vignette"]]
-
-
-# Filter text_data based on whether the tifffile can be found in the vignette name in the train data
-## Remove file extension
-text_all_cleaned["tifffile_noext"] = text_all_cleaned["tifffile"].str.split(".").str[0]
-
-# Filter
-train_text = text_all_cleaned[text_all_cleaned["tifffile_noext"].isin(train_to_filter)]
-test_text = text_all_cleaned[text_all_cleaned["tifffile_noext"].isin(test_to_filter)]
-val_text = text_all_cleaned[text_all_cleaned["tifffile_noext"].isin(val_to_filter)]
-
-# Remove tifffile, tifffile_noext
-train_text = train_text.drop(columns=["tifffile", "tifffile_noext"])
-val_text = val_text.drop(columns=["tifffile", "tifffile_noext"])
-test_text = test_text.drop(columns=["tifffile", "tifffile_noext"])
-
+text_train, text_val, text_test = [remove_cols(df) for df in [text_train, text_val, text_test]]
 
 # 2. Build MLP
 
@@ -130,24 +68,28 @@ def build_mlp(input_shape, num_classes, hidden_layers=3, neurons_per_layer=512, 
 
 
 # Extract feature columns (excluding class columns)
-feature_columns = [col for col in train_text.columns if not col.startswith('class_')]
+feature_columns = [col for col in text_train.columns if not col.startswith('class_')]
 
 # Extract class columns
-class_columns = [col for col in train_text.columns if col.startswith('class_')]
+class_columns = [col for col in text_train.columns if col.startswith('class_')]
 
 # Convert data to numpy arrays for MLP
-X_train = train_text[feature_columns].to_numpy()
-y_train = train_text[class_columns].to_numpy()
+X_train = text_train[feature_columns].to_numpy()
+y_train = text_train[class_columns].to_numpy()
 
-X_val = val_text[feature_columns].to_numpy()
-y_val = val_text[class_columns].to_numpy()
 
-X_test = test_text[feature_columns].to_numpy()
-y_test = test_text[class_columns].to_numpy()
+
+X_val = text_val[feature_columns].to_numpy()
+y_val = text_val[class_columns].to_numpy()
+
+
+X_test = text_test[feature_columns].to_numpy()
+y_test = text_test[class_columns].to_numpy()
+
 
 
 input_shape = X_train.shape[1]
-num_classes = len(text_target.unique())
+num_classes = len(class_columns)
 
 # Grid search parameters
 tested_hidden_layers = [1, 2, 3, 4, 5]

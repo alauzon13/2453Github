@@ -10,9 +10,9 @@ from tensorflow.keras.applications.efficientnet_v2 import EfficientNetV2B3, prep
 from sklearn.metrics import precision_score, recall_score, f1_score
 
 # Load the datasets
-train_df = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Modelling/TrainTestSplit/train.csv")
-val_df = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Modelling/TrainTestSplit/val.csv")
-test_df = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Modelling/TrainTestSplit/test.csv")
+train_df = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Data/ImageData/image_train.csv")
+val_df = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Data/ImageData/image_val.csv")
+test_df = pd.read_csv("/Users/adelelauzon/Desktop/MSc/STA5243/2453Github/Data/ImageData/image_test.csv")
 
 # Define image size and batch size
 image_size = (300, 300)
@@ -62,6 +62,7 @@ val_ds = val_ds.map(load_and_preprocess_image).map(input_preprocess, num_paralle
 
 test_ds = tf.data.Dataset.from_tensor_slices((test_df["Vignette"].values, test_df["Class"].values))
 test_ds = test_ds.map(load_and_preprocess_image).map(input_preprocess, num_parallel_calls=tf.data.AUTOTUNE).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+
 
 # Build model from pretrained weights 
 def build_model(num_classes):
